@@ -1,0 +1,16 @@
+{
+  "short_name": "STREAM ITGB",
+  "name": "STREAM ITGB TRIVIA - Instituto Técnico Belgrano F29",
+  "icons": [
+    {
+      "src": "/logo-itgb.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#080D1A",
+  "theme_color": "#080D1A",
+  "display": "standalone",
+  "orientation": "portrait"
+}
