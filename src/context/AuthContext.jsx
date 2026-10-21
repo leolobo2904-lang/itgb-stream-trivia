@@ -18,6 +18,11 @@ const AuthContext = createContext(null);
 
 export const SUPER_ADMIN_EMAIL = "liolobo2904@gmail.com";
 
+export const normalizeEmail = (email) => {
+  if (!email || typeof email !== 'string') return '';
+  return email.toLowerCase().trim();
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -25,47 +30,47 @@ export function AuthProvider({ children }) {
   const [allowedEmails, setAllowedEmails] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Listen to admin whitelist in Firestore (both admin_config/whitelist AND admins collection)
+  // 1. Real-time Listeners for Admin Whitelist & Admins Collection
   useEffect(() => {
     let emailsFromWhitelist = [];
     let emailsFromAdminsCol = [];
 
     const updateCombinedAdmins = () => {
       const combined = Array.from(new Set([...emailsFromWhitelist, ...emailsFromAdminsCol]))
-        .map(e => e.toLowerCase().trim())
+        .map(normalizeEmail)
         .filter(Boolean);
       setAllowedEmails(combined);
     };
 
-    // 1. Listen to admin_config/whitelist document
+    // Listen to admin_config/whitelist document
     const whitelistRef = doc(db, 'admin_config', 'whitelist');
     const unsubWhitelist = onSnapshot(whitelistRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        emailsFromWhitelist = Array.isArray(data.allowedEmails) ? data.allowedEmails : [];
+        emailsFromWhitelist = Array.isArray(data?.allowedEmails) ? data.allowedEmails : [];
       } else {
         emailsFromWhitelist = [];
       }
       updateCombinedAdmins();
     }, (error) => {
-      console.warn("Nota: admin_config/whitelist no disponible:", error?.message);
+      console.warn("Aviso: listener admin_config/whitelist:", error?.message);
       emailsFromWhitelist = [];
       updateCombinedAdmins();
     });
 
-    // 2. Listen to admins collection
+    // Listen to admins collection
     const adminsColRef = collection(db, 'admins');
     const unsubAdminsCol = onSnapshot(adminsColRef, (snap) => {
       const list = [];
       snap.forEach(d => {
         const data = d.data();
-        if (data.email) list.push(data.email);
-        else if (d.id.includes('@')) list.push(d.id);
+        if (data?.email) list.push(data.email);
+        else if (d.id && d.id.includes('@')) list.push(d.id);
       });
       emailsFromAdminsCol = list;
       updateCombinedAdmins();
     }, (error) => {
-      // In case collection doesn't exist yet, ignore gracefully
+      console.warn("Aviso: listener coleccion admins:", error?.message);
       emailsFromAdminsCol = [];
       updateCombinedAdmins();
     });
@@ -76,19 +81,54 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Compute strictly whether current user is an authorized admin
+  // 2. Compute Admin Status in Real Time with Full Normalization
   useEffect(() => {
-    if (user && user.email) {
-      const emailLower = user.email.toLowerCase().trim();
-      const isSuperAdmin = emailLower === SUPER_ADMIN_EMAIL.toLowerCase().trim();
-      const inWhitelist = allowedEmails.some(e => e && e.toLowerCase().trim() === emailLower);
-      setIsAdmin(isSuperAdmin || inWhitelist);
-    } else {
+    if (!user || !user.email) {
       setIsAdmin(false);
+      return;
     }
-  }, [user, allowedEmails]);
 
-  // Auth State Listener
+    const currentEmail = normalizeEmail(user.email);
+    const superAdmin = normalizeEmail(SUPER_ADMIN_EMAIL);
+
+    // Immediate Super Admin access
+    if (currentEmail === superAdmin) {
+      setIsAdmin(true);
+      return;
+    }
+
+    // Check against real-time allowed list
+    const inAllowedList = allowedEmails.some(e => normalizeEmail(e) === currentEmail);
+
+    // Check user profile role/flag if set in Firestore
+    const hasRoleAdmin = userProfile?.role === 'admin' || userProfile?.isAdmin === true;
+
+    if (inAllowedList || hasRoleAdmin) {
+      setIsAdmin(true);
+      return;
+    }
+
+    // Direct check for document doc(db, 'admins', currentEmail)
+    let isMounted = true;
+    const userAdminDocRef = doc(db, 'admins', currentEmail);
+    const unsubUserAdmin = onSnapshot(userAdminDocRef, (docSnap) => {
+      if (!isMounted) return;
+      if (docSnap.exists()) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(inAllowedList || hasRoleAdmin);
+      }
+    }, () => {
+      if (isMounted) setIsAdmin(inAllowedList || hasRoleAdmin);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubUserAdmin();
+    };
+  }, [user, allowedEmails, userProfile]);
+
+  // 3. Auth State & User Profile Listener
   useEffect(() => {
     let unsubUserDoc = null;
 
@@ -129,6 +169,7 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
         setUserProfile(null);
+        setIsAdmin(false);
         if (unsubUserDoc) unsubUserDoc();
       }
       setLoading(false);
@@ -155,6 +196,7 @@ export function AuthProvider({ children }) {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
+      setIsAdmin(false);
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       throw error;

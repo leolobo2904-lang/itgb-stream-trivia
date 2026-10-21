@@ -35,16 +35,16 @@ import {
 import { playClick, triggerVibrate } from '../utils/audio';
 
 export default function Admin() {
-  const { user, allowedEmails, loading } = useAuth();
+  const { user, userProfile, isAdmin, allowedEmails, loading } = useAuth();
   const navigate = useNavigate();
 
-  // Verify authorization: Super Admin OR in Firestore whitelist
-  const userEmail = user?.email ? user.email.toLowerCase().trim() : '';
+  // Verify authorization: Super Admin OR in Firestore whitelist OR role in Firestore
+  const userEmail = (user?.email || '').toLowerCase().trim();
   const isSuperAdmin = userEmail === SUPER_ADMIN_EMAIL.toLowerCase().trim();
   const isInAdminList = Array.isArray(allowedEmails) && allowedEmails.some(
-    e => e && e.toLowerCase().trim() === userEmail
+    e => (e || '').toLowerCase().trim() === userEmail
   );
-  const isAuthorized = isSuperAdmin || isInAdminList;
+  const isAuthorized = Boolean(isAdmin || isSuperAdmin || isInAdminList || userProfile?.role === 'admin' || userProfile?.isAdmin === true);
 
   // 2. VERIFICACIÓN DE PERMISOS:
   // Si no es el Súper Admin ni está en la lista autorizada, redirige DE INMEDIATO al Hub ('/')

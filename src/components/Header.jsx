@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ItgbLogo from './ItgbLogo';
 import { Volume2, VolumeX, LogOut, ShieldAlert, Trophy, Radio } from 'lucide-react';
-import { isSoundEnabled, toggleSound, playClick } from '../utils/audio';
+import { isSoundEnabled, toggleSound, playClick, subscribeSoundChange } from '../utils/audio';
 
 export default function Header() {
   const { user, isAdmin, logout } = useAuth();
@@ -11,9 +11,14 @@ export default function Header() {
   const location = useLocation();
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
 
+  useEffect(() => {
+    return subscribeSoundChange((state) => {
+      setSoundOn(state);
+    });
+  }, []);
+
   const handleSoundToggle = () => {
-    const newState = toggleSound();
-    setSoundOn(newState);
+    toggleSound();
     playClick();
   };
 

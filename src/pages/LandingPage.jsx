@@ -2,14 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ItgbLogo from '../components/ItgbLogo';
-import { playClick, triggerVibrate } from '../utils/audio';
-import { Sparkles, AlertCircle, Zap, Timer, Trophy, Radio } from 'lucide-react';
+import { playClick, triggerVibrate, isSoundEnabled, toggleSound, subscribeSoundChange } from '../utils/audio';
+import { Sparkles, AlertCircle, Zap, Timer, Trophy, Radio, Volume2, VolumeX } from 'lucide-react';
 
 export default function LandingPage() {
   const { user, loginWithGoogle, loading } = useAuth();
   const navigate = useNavigate();
   const [authError, setAuthError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+
+  useEffect(() => {
+    return subscribeSoundChange((state) => {
+      setSoundOn(state);
+    });
+  }, []);
+
+  const handleSoundToggle = () => {
+    toggleSound();
+    playClick();
+  };
 
   useEffect(() => {
     if (!loading && user) {
@@ -37,8 +49,8 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-between px-4 py-6 sm:py-10 max-w-md mx-auto z-10 font-sans select-none">
-      {/* Top Live Streaming Broadcast Pill */}
-      <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+      {/* Top Header Row: Live Pill + Audio Mute Toggle */}
+      <div className="w-full flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-cyan-500/30 text-cyan-400 text-xs font-bold tracking-wider uppercase shadow-md shadow-cyan-950/40">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -47,6 +59,18 @@ export default function LandingPage() {
           <Radio size={13} className="text-cyan-400" />
           <span>STREAMING ITGB • EN VIVO</span>
         </div>
+
+        <button
+          onClick={handleSoundToggle}
+          className={`p-2 rounded-xl border border-b-2 active:translate-y-0.5 active:border-b-0 transition-all cursor-pointer shadow-md ${
+            soundOn 
+              ? 'bg-cyan-950/80 border-cyan-500/40 border-b-cyan-700 text-cyan-400' 
+              : 'bg-slate-900/90 border-white/10 border-b-slate-950 text-slate-500'
+          }`}
+          title={soundOn ? 'Silenciar Música y Efectos' : 'Activar Música y Efectos'}
+        >
+          {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
       </div>
 
       {/* Main Game Showcase */}

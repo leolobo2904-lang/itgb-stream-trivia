@@ -17,9 +17,12 @@ import {
   playCorrect, 
   playWrong, 
   triggerVibrate, 
-  playClick 
+  playClick,
+  isSoundEnabled,
+  toggleSound,
+  subscribeSoundChange
 } from '../utils/audio';
-import { ArrowLeft, Check, X, Sparkles, Zap, Trophy, Radio } from 'lucide-react';
+import { ArrowLeft, Check, X, Sparkles, Zap, Trophy, Radio, Volume2, VolumeX } from 'lucide-react';
 
 // Default ITGB technical questions (grounded in technical school curriculum)
 export const DEFAULT_QUESTIONS = [
@@ -102,6 +105,19 @@ export default function Game() {
   // Accumulated Session Stats
   const [sessionScore, setSessionScore] = useState(0);
   const [sessionTime, setSessionTime] = useState(0);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+
+  // Keep sound toggle in sync
+  useEffect(() => {
+    return subscribeSoundChange((state) => {
+      setSoundOn(state);
+    });
+  }, []);
+
+  const handleSoundToggle = () => {
+    toggleSound();
+    playClick();
+  };
 
   // 1. Fetch questions from Firestore
   useEffect(() => {
@@ -185,9 +201,12 @@ export default function Game() {
     const timer = setTimeout(() => {
       setTimeLeft(prev => {
         const nextVal = prev - 1;
-        if (nextVal <= 5 && nextVal > 0) {
-          playTick();
-          triggerVibrate(15);
+        if (nextVal >= 0) {
+          // Sincroniza SFX en cada segundo del conteo (urgente a <= 5s)
+          playTick(nextVal <= 5);
+          if (nextVal <= 5 && nextVal > 0) {
+            triggerVibrate(15);
+          }
         }
         return nextVal >= 0 ? nextVal : 0;
       });
@@ -355,17 +374,31 @@ export default function Game() {
     <div className="min-h-screen flex flex-col justify-between max-w-md w-full mx-auto px-4 py-4 relative font-sans select-none">
       {/* Top Gaming HUD Header */}
       <div className="flex items-center justify-between pt-1 pb-3">
-        {/* Back to Hub Button with Bevel */}
-        <button
-          onClick={() => {
-            playClick();
-            navigate('/hub');
-          }}
-          className="p-2.5 rounded-xl bg-slate-900/90 border border-white/10 border-b-2 border-b-slate-950 text-slate-300 hover:text-white active:translate-y-0.5 active:border-b-0 transition-all duration-150 cursor-pointer shadow-md"
-          title="Volver al menú"
-        >
-          <ArrowLeft size={18} />
-        </button>
+        {/* Left Controls: Volver + Silenciar Audio */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              playClick();
+              navigate('/hub');
+            }}
+            className="p-2.5 rounded-xl bg-slate-900/90 border border-white/10 border-b-2 border-b-slate-950 text-slate-300 hover:text-white active:translate-y-0.5 active:border-b-0 transition-all duration-150 cursor-pointer shadow-md"
+            title="Volver al menú"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <button
+            onClick={handleSoundToggle}
+            className={`p-2.5 rounded-xl border border-b-2 active:translate-y-0.5 active:border-b-0 transition-all duration-150 cursor-pointer shadow-md ${
+              soundOn 
+                ? 'bg-cyan-950/80 border-cyan-500/40 border-b-cyan-700 text-cyan-400' 
+                : 'bg-slate-900/90 border-white/10 border-b-slate-950 text-slate-500'
+            }`}
+            title={soundOn ? 'Silenciar Música y Efectos' : 'Activar Música y Efectos'}
+          >
+            {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+        </div>
 
         {/* Center Game HUD Badges */}
         <div className="flex flex-col items-center gap-1">

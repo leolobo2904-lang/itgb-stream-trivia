@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import TechBackground from './components/TechBackground';
@@ -7,6 +7,7 @@ import Hub from './pages/Hub';
 import Game from './pages/Game';
 import RankingPage from './pages/RankingPage';
 import Admin from './pages/Admin';
+import { initBackgroundMusic } from './utils/audio';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -30,6 +31,10 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    initBackgroundMusic();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#080D1A] text-slate-100 flex flex-col relative font-sans selection:bg-cyan-500 selection:text-slate-950">
       {/* Background Cyber Effect */}

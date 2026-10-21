@@ -10,19 +10,19 @@ import { playClick, triggerVibrate } from '../utils/audio';
 export const SUPER_ADMIN_EMAIL = "liolobo2904@gmail.com";
 
 export default function Hub() {
-  const { user, userProfile, allowedEmails } = useAuth();
+  const { user, userProfile, isAdmin, allowedEmails } = useAuth();
   const navigate = useNavigate();
   const [showRules, setShowRules] = useState(false);
 
   // Check if current user is strictly authorized as Super Admin or is in Firestore admin whitelist
-  const userEmail = user?.email ? user.email.toLowerCase().trim() : '';
+  const userEmail = (user?.email || '').toLowerCase().trim();
   const isSuperAdmin = userEmail === SUPER_ADMIN_EMAIL.toLowerCase().trim();
   const isInAdminList = Array.isArray(allowedEmails) && allowedEmails.some(
-    e => e && e.toLowerCase().trim() === userEmail
+    e => (e || '').toLowerCase().trim() === userEmail
   );
   
-  // COMPLETELY HIDDEN by default for normal users
-  const showAdminAccess = isSuperAdmin || isInAdminList;
+  // Real-time access: COMPLETELY HIDDEN for normal users, reacts immediately when added
+  const showAdminAccess = Boolean(isAdmin || isSuperAdmin || isInAdminList || userProfile?.role === 'admin' || userProfile?.isAdmin === true);
 
   const status = userProfile?.status || 'registered';
   const isCompleted = status === 'completed';
